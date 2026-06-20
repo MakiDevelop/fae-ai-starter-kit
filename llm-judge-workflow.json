@@ -1,0 +1,717 @@
+{
+  "name": "LLM-as-Judge Content Quality Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## LLM-as-Judge Content Quality Pipeline\n\nFour-step workflow for Chris, a Global FAE:\n1. Claude generates or refines content.\n2. Gemini critiques and scores the draft.\n3. Code node evaluates Gemini's review and gates quality.\n4. Slack webhook notifies a human with approve/reject actions.\n\nConfigure inputs, API keys, and Slack webhook URL in the Set node below before running.",
+        "height": 260,
+        "width": 420,
+        "color": 4
+      },
+      "id": "sticky-overview",
+      "name": "Workflow Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -820,
+        -260
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -780,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "content-input",
+              "name": "content_input",
+              "type": "string",
+              "value": "Paste Chris's rough LinkedIn post, presentation outline, or technical document draft here."
+            },
+            {
+              "id": "content-type",
+              "name": "content_type",
+              "type": "string",
+              "value": "LinkedIn post"
+            },
+            {
+              "id": "target-audience",
+              "name": "target_audience",
+              "type": "string",
+              "value": "Technical decision makers, solution architects, and field engineering leaders"
+            },
+            {
+              "id": "content-goal",
+              "name": "content_goal",
+              "type": "string",
+              "value": "Create credible, concise thought leadership content with strong technical clarity and practical field insight."
+            },
+            {
+              "id": "quality-threshold",
+              "name": "quality_threshold",
+              "type": "number",
+              "value": 80
+            },
+            {
+              "id": "claude-model",
+              "name": "claude_model",
+              "type": "string",
+              "value": "claude-sonnet-4-6"
+            },
+            {
+              "id": "anthropic-key",
+              "name": "anthropic_api_key",
+              "type": "string",
+              "value": "REPLACE_WITH_ANTHROPIC_API_KEY_OR_USE_N8N_SECRET_EXPRESSION"
+            },
+            {
+              "id": "gemini-key",
+              "name": "gemini_api_key",
+              "type": "string",
+              "value": "REPLACE_WITH_GEMINI_API_KEY_OR_USE_N8N_SECRET_EXPRESSION"
+            },
+            {
+              "id": "slack-webhook-url",
+              "name": "slack_webhook_url",
+              "type": "string",
+              "value": "REPLACE_WITH_SLACK_INCOMING_WEBHOOK_URL"
+            },
+            {
+              "id": "approval-note",
+              "name": "_note_approval",
+              "type": "string",
+              "value": "Slack notification is one-way. Review the message in Slack and decide whether to publish. No button callback needed."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "configure-content-input",
+      "name": "Configure Content Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -540,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Step 1: Claude generation/refinement\n\nClaude receives the configured draft and produces polished content for Chris's target audience and content goal.",
+        "height": 180,
+        "width": 340,
+        "color": 5
+      },
+      "id": "sticky-step-1",
+      "name": "Step 1 Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{$json.anthropic_api_key}}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": $json.claude_model,\n  \"max_tokens\": 1800,\n  \"temperature\": 0.4,\n  \"system\": \"You are Claude, helping Chris, a Global Field Application Engineer, create credible technical content. Preserve technical nuance, avoid hype, and write with executive-ready clarity.\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Content type: \" + $json.content_type + \"\\nTarget audience: \" + $json.target_audience + \"\\nGoal: \" + $json.content_goal + \"\\n\\nGenerate or refine the following content. Return only the polished draft, with no preamble.\\n\\nDraft:\\n\" + $json.content_input\n    }\n  ]\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "generate-refine-claude",
+      "name": "Generate or Refine Content with Claude",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -260,
+        80
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "refined-content",
+              "name": "refined_content",
+              "type": "string",
+              "value": "={{$json.content && $json.content[0] ? $json.content[0].text : JSON.stringify($json)}}"
+            },
+            {
+              "id": "content-type-copy",
+              "name": "content_type",
+              "type": "string",
+              "value": "={{$node[\"Configure Content Input\"].json.content_type}}"
+            },
+            {
+              "id": "target-audience-copy",
+              "name": "target_audience",
+              "type": "string",
+              "value": "={{$node[\"Configure Content Input\"].json.target_audience}}"
+            },
+            {
+              "id": "content-goal-copy",
+              "name": "content_goal",
+              "type": "string",
+              "value": "={{$node[\"Configure Content Input\"].json.content_goal}}"
+            },
+            {
+              "id": "quality-threshold-copy",
+              "name": "quality_threshold",
+              "type": "number",
+              "value": "={{$node[\"Configure Content Input\"].json.quality_threshold}}"
+            },
+            {
+              "id": "gemini-key-copy",
+              "name": "gemini_api_key",
+              "type": "string",
+              "value": "={{$node[\"Configure Content Input\"].json.gemini_api_key}}"
+            },
+            {
+              "id": "slack-webhook-copy",
+              "name": "slack_webhook_url",
+              "type": "string",
+              "value": "={{$node[\"Configure Content Input\"].json.slack_webhook_url}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-gemini-review-input",
+      "name": "Prepare Gemini Review Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        20,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Step 2: Gemini critique\n\nGemini acts as the independent reviewer. It returns machine-readable JSON with category scores, an overall score, critique, and revision suggestions.",
+        "height": 180,
+        "width": 360,
+        "color": 6
+      },
+      "id": "sticky-step-2",
+      "name": "Step 2 Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={{$json.gemini_api_key}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"role\": \"user\",\n      \"parts\": [\n        {\n          \"text\": \"You are Gemini, an independent LLM-as-Judge reviewer for Chris, a Global Field Application Engineer. Review the content for quality and usefulness. Return strict JSON only, with no markdown fences.\\n\\nEvaluation rubric: score each dimension from 0 to 100. Dimensions: technical_accuracy, clarity, audience_fit, originality, actionability, brand_safety. Include overall_score, pass_recommendation, critique, strengths, risks, and revision_suggestions.\\n\\nContent type: \" + $json.content_type + \"\\nTarget audience: \" + $json.target_audience + \"\\nGoal: \" + $json.content_goal + \"\\n\\nContent to review:\\n\" + $json.refined_content\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"temperature\": 0.2,\n    \"responseMimeType\": \"application/json\"\n  }\n}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "review-critique-gemini",
+      "name": "Review and Critique Content with Gemini",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        80
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "gemini-review-raw",
+              "name": "gemini_review_raw",
+              "type": "string",
+              "value": "={{$json.candidates && $json.candidates[0] && $json.candidates[0].content && $json.candidates[0].content.parts && $json.candidates[0].content.parts[0] ? $json.candidates[0].content.parts[0].text : JSON.stringify($json)}}"
+            },
+            {
+              "id": "refined-content-copy",
+              "name": "refined_content",
+              "type": "string",
+              "value": "={{$node[\"Prepare Gemini Review Input\"].json.refined_content}}"
+            },
+            {
+              "id": "content-type-eval",
+              "name": "content_type",
+              "type": "string",
+              "value": "={{$node[\"Prepare Gemini Review Input\"].json.content_type}}"
+            },
+            {
+              "id": "threshold-eval",
+              "name": "quality_threshold",
+              "type": "number",
+              "value": "={{$node[\"Prepare Gemini Review Input\"].json.quality_threshold}}"
+            },
+            {
+              "id": "slack-webhook-eval",
+              "name": "slack_webhook_url",
+              "type": "string",
+              "value": "={{$node[\"Prepare Gemini Review Input\"].json.slack_webhook_url}}"
+            },
+            {
+              "id": "approval-callback-eval",
+              "name": "approval_callback_url",
+              "type": "string",
+              "value": "={{$node[\"Prepare Gemini Review Input\"].json.approval_callback_url}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-evaluation-input",
+      "name": "Prepare Evaluation Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        580,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Step 3: Automated scoring\n\nThe Code node parses Gemini's JSON review, normalizes category scores, calculates missing totals when needed, and decides pass/fail using the configured quality threshold.",
+        "height": 190,
+        "width": 370,
+        "color": 3
+      },
+      "id": "sticky-step-3",
+      "name": "Step 3 Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        560,
+        -190
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function stripMarkdownFences(value) {\n  return String(value || '')\n    .trim()\n    .replace(/^```(?:json)?\\s*/i, '')\n    .replace(/\\s*```$/i, '')\n    .trim();\n}\n\nfunction safeJsonParse(value) {\n  const cleaned = stripMarkdownFences(value);\n  try {\n    return JSON.parse(cleaned);\n  } catch (error) {\n    const match = cleaned.match(/\\{[\\s\\S]*\\}/);\n    if (match) {\n      return JSON.parse(match[0]);\n    }\n    throw error;\n  }\n}\n\nfunction toScore(value) {\n  const number = Number(value);\n  if (!Number.isFinite(number)) return null;\n  return Math.max(0, Math.min(100, number));\n}\n\nreturn $input.all().map((item) => {\n  const input = item.json;\n  let review;\n  let parseError = null;\n\n  try {\n    review = safeJsonParse(input.gemini_review_raw);\n  } catch (error) {\n    parseError = error.message;\n    review = {\n      critique: input.gemini_review_raw || 'Gemini review was empty or unavailable.',\n      strengths: [],\n      risks: ['Review JSON could not be parsed.'],\n      revision_suggestions: ['Re-run Gemini review or inspect the raw response.']\n    };\n  }\n\n  const scoreKeys = ['technical_accuracy', 'clarity', 'audience_fit', 'originality', 'actionability', 'brand_safety'];\n  const scores = {};\n  for (const key of scoreKeys) {\n    const value = review[key] ?? review.scores?.[key];\n    const score = toScore(value);\n    if (score !== null) scores[key] = score;\n  }\n\n  let overallScore = toScore(review.overall_score ?? review.scores?.overall_score);\n  if (overallScore === null) {\n    const values = Object.values(scores);\n    overallScore = values.length ? Math.round(values.reduce((sum, score) => sum + score, 0) / values.length) : 0;\n  }\n\n  const threshold = Number(input.quality_threshold || 80);\n  const criticalFailures = Object.entries(scores)\n    .filter(([, score]) => score < 60)\n    .map(([key, score]) => `${key}: ${score}`);\n  const passed = parseError === null && overallScore >= threshold && criticalFailures.length === 0;\n\n  return {\n    json: {\n      content_type: input.content_type,\n      refined_content: input.refined_content,\n      gemini_review_raw: input.gemini_review_raw,\n      review,\n      evaluation: {\n        threshold,\n        overall_score: overallScore,\n        category_scores: scores,\n        critical_failures: criticalFailures,\n        passed,\n        decision: passed ? 'READY_FOR_HUMAN_APPROVAL' : 'REJECT_OR_REVISE',\n        parse_error: parseError\n      },\n      slack_webhook_url: input.slack_webhook_url,\n      approval_callback_url: input.approval_callback_url\n    }\n  };\n});"
+      },
+      "id": "evaluate-review-and-gate",
+      "name": "Evaluate Review and Gate Quality",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "passed-condition",
+              "leftValue": "={{$json.evaluation.passed}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "quality-gate",
+      "name": "Quality Gate Pass?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1140,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Step 4: Human approval notification\n\nSlack incoming webhook receives a concise decision packet. Passed drafts include approval/rejection buttons; failed drafts are routed as revision requests.",
+        "height": 190,
+        "width": 390,
+        "color": 7
+      },
+      "id": "sticky-step-4",
+      "name": "Step 4 Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1160,
+        -190
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item) => {\n  const data = item.json;\n  const scores = data.evaluation.category_scores || {};\n  const scoreLines = Object.entries(scores).map(([key, value]) => `* ${key}: ${value}`).join('\\n') || '* No category scores available';\n  const critique = data.review.critique || data.review.summary || 'No critique provided.';\n  const suggestions = Array.isArray(data.review.revision_suggestions)\n    ? data.review.revision_suggestions.join('\\n- ')\n    : String(data.review.revision_suggestions || 'No revision suggestions provided.');\n\n  return {\n    json: {\n      slack_webhook_url: data.slack_webhook_url,\n      payload: {\n        text: `Content ready for human approval: ${data.evaluation.overall_score}/100`,\n        blocks: [\n          {\n            type: 'header',\n            text: {\n              type: 'plain_text',\n              text: 'Content ready for human approval'\n            }\n          },\n          {\n            type: 'section',\n            fields: [\n              {\n                type: 'mrkdwn',\n                text: `*Content type:*\\n${data.content_type}`\n              },\n              {\n                type: 'mrkdwn',\n                text: `*Overall score:*\\n${data.evaluation.overall_score}/${data.evaluation.threshold}`\n              }\n            ]\n          },\n          {\n            type: 'section',\n            text: {\n              type: 'mrkdwn',\n              text: `*Category scores:*\\n${scoreLines}`\n            }\n          },\n          {\n            type: 'section',\n            text: {\n              type: 'mrkdwn',\n              text: `*Gemini critique:*\\n${critique}`\n            }\n          },\n          {\n            type: 'section',\n            text: {\n              type: 'mrkdwn',\n              text: `*Revision suggestions:*\\n- ${suggestions}`\n            }\n          },\n          {\n            type: 'section',\n            text: {\n              type: 'mrkdwn',\n              text: `*Final draft:*\\n${data.refined_content.slice(0, 2500)}`\n            }\n          }\n        ]\n      }\n    }\n  };\n});"
+      },
+      "id": "prepare-approval-slack-message",
+      "name": "Prepare Approval Slack Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1420,
+        -20
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$json.slack_webhook_url}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json.payload}}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "slack-human-approval-webhook",
+      "name": "Slack Human Approval Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1700,
+        -20
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item) => {\n  const data = item.json;\n  const failures = data.evaluation.critical_failures.length\n    ? data.evaluation.critical_failures.join(', ')\n    : data.evaluation.parse_error || 'Overall score below threshold';\n  const suggestions = Array.isArray(data.review.revision_suggestions)\n    ? data.review.revision_suggestions.join('\\n- ')\n    : String(data.review.revision_suggestions || 'No revision suggestions provided.');\n\n  return {\n    json: {\n      slack_webhook_url: data.slack_webhook_url,\n      payload: {\n        text: `Content needs revision: ${data.evaluation.overall_score}/100`,\n        blocks: [\n          {\n            type: 'header',\n            text: {\n              type: 'plain_text',\n              text: 'Content needs revision'\n            }\n          },\n          {\n            type: 'section',\n            fields: [\n              {\n                type: 'mrkdwn',\n                text: `*Content type:*\\n${data.content_type}`\n              },\n              {\n                type: 'mrkdwn',\n                text: `*Score / threshold:*\\n${data.evaluation.overall_score}/${data.evaluation.threshold}`\n              }\n            ]\n          },\n          {\n            type: 'section',\n            text: {\n              type: 'mrkdwn',\n              text: `*Reason:*\\n${failures}`\n            }\n          },\n          {\n            type: 'section',\n            text: {\n              type: 'mrkdwn',\n              text: `*Suggested revisions:*\\n- ${suggestions}`\n            }\n          }\n        ]\n      }\n    }\n  };\n});"
+      },
+      "id": "prepare-revision-slack-message",
+      "name": "Prepare Revision Slack Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1420,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$json.slack_webhook_url}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json.payload}}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "slack-revision-webhook",
+      "name": "Slack Revision or Rejection Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1700,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "content": "## Error handling\n\nThis branch catches workflow-level failures and sends a Slack webhook alert with the failed node and error message. API request nodes also retry once before failing.",
+        "height": 170,
+        "width": 390,
+        "color": 2
+      },
+      "id": "sticky-error-handling",
+      "name": "Error Handling Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -820,
+        360
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "workflow-error-trigger",
+      "name": "Workflow Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -540,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map((item) => {\n  const error = item.json;\n  const configuredWebhook = $('Configure Content Input').first()?.json?.slack_webhook_url;\n  return {\n    json: {\n      slack_webhook_url: configuredWebhook || 'REPLACE_WITH_SLACK_INCOMING_WEBHOOK_URL',\n      payload: {\n        text: 'LLM-as-Judge workflow error',\n        blocks: [\n          {\n            type: 'header',\n            text: {\n              type: 'plain_text',\n              text: 'LLM-as-Judge workflow error'\n            }\n          },\n          {\n            type: 'section',\n            fields: [\n              {\n                type: 'mrkdwn',\n                text: `*Workflow:*\\n${error.workflow?.name || 'Unknown'}`\n              },\n              {\n                type: 'mrkdwn',\n                text: `*Failed node:*\\n${error.execution?.lastNodeExecuted || 'Unknown'}`\n              }\n            ]\n          },\n          {\n            type: 'section',\n            text: {\n              type: 'mrkdwn',\n              text: `*Error:*\\n${error.execution?.error?.message || error.message || 'Unknown error'}`\n            }\n          }\n        ]\n      }\n    }\n  };\n});"
+      },
+      "id": "format-workflow-error-notification",
+      "name": "Format Workflow Error Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -260,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$json.slack_webhook_url}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json.payload}}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "slack-error-webhook",
+      "name": "Slack Error Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        20,
+        560
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Configure Content Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configure Content Input": {
+      "main": [
+        [
+          {
+            "node": "Generate or Refine Content with Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate or Refine Content with Claude": {
+      "main": [
+        [
+          {
+            "node": "Prepare Gemini Review Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Gemini Review Input": {
+      "main": [
+        [
+          {
+            "node": "Review and Critique Content with Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Review and Critique Content with Gemini": {
+      "main": [
+        [
+          {
+            "node": "Prepare Evaluation Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Evaluation Input": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Review and Gate Quality",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Review and Gate Quality": {
+      "main": [
+        [
+          {
+            "node": "Quality Gate Pass?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quality Gate Pass?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Approval Slack Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Revision Slack Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Approval Slack Message": {
+      "main": [
+        [
+          {
+            "node": "Slack Human Approval Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Revision Slack Message": {
+      "main": [
+        [
+          {
+            "node": "Slack Revision or Rejection Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Format Workflow Error Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Workflow Error Notification": {
+      "main": [
+        [
+          {
+            "node": "Slack Error Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "6e52750a-3618-4c2c-93f5-4f383c6edb03",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "portable-n8n-v1-workflow"
+  },
+  "id": "llm-judge-content-quality-pipeline",
+  "tags": []
+}

@@ -1,0 +1,876 @@
+<title>AI Workflow Starter Kit — Field Deployment Guide</title>
+<style>
+  :root {
+    --ground: #0F1419;
+    --surface: #1A2332;
+    --surface-raised: #212D3E;
+    --border: #2A3544;
+    --text: #CCD6E0;
+    --text-muted: #7A8B9E;
+    --accent: #00A6FB;
+    --accent-dim: rgba(0,166,251,0.12);
+    --amber: #FFB627;
+    --amber-dim: rgba(255,182,39,0.10);
+    --green: #22C55E;
+    --red: #EF4444;
+    --mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Segoe UI Mono', Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* ── Document Header (instrument panel banner) ── */
+  .doc-header {
+    border-bottom: 2px solid var(--accent);
+    padding: 40px 0 28px;
+    margin-bottom: 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .doc-header::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--amber), var(--accent));
+    background-size: 200% 100%;
+    animation: scanline 4s ease-in-out infinite;
+  }
+  @keyframes scanline {
+    0%, 100% { background-position: 0% 0; }
+    50% { background-position: 100% 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .doc-header::after { animation: none; background: var(--accent); }
+  }
+
+  .doc-classification {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .doc-classification span {
+    padding: 2px 8px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+  }
+
+  .doc-title {
+    font-family: var(--mono);
+    font-size: clamp(24px, 4vw, 36px);
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: #fff;
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+
+  .doc-subtitle {
+    font-size: 17px;
+    color: var(--text-muted);
+    max-width: 600px;
+  }
+
+  /* ── Mission Brief ── */
+  .brief {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    padding: 24px 28px;
+    margin-bottom: 48px;
+  }
+  .brief-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+  .brief p { margin-bottom: 12px; }
+  .brief p:last-child { margin-bottom: 0; }
+  .brief strong { color: #fff; font-weight: 600; }
+
+  /* ── Section headings ── */
+  .section {
+    margin-bottom: 56px;
+  }
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-id {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--amber);
+    letter-spacing: 1px;
+    flex-shrink: 0;
+  }
+  .section-title {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: -0.3px;
+  }
+
+  /* ── Flow diagram ── */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 24px 0;
+    overflow-x: auto;
+    margin-bottom: 24px;
+  }
+  .flow-node {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 18px;
+    min-width: 140px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .flow-node-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+  .flow-node-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+  }
+  .flow-node--claude { border-color: var(--accent); }
+  .flow-node--claude .flow-node-name { color: var(--accent); }
+  .flow-node--gemini { border-color: #8B5CF6; }
+  .flow-node--gemini .flow-node-name { color: #8B5CF6; }
+  .flow-node--eval { border-color: var(--amber); }
+  .flow-node--eval .flow-node-name { color: var(--amber); }
+  .flow-node--human { border-color: var(--green); }
+  .flow-node--human .flow-node-name { color: var(--green); }
+
+  .flow-arrow {
+    font-family: var(--mono);
+    color: var(--text-muted);
+    font-size: 18px;
+    padding: 0 6px;
+    flex-shrink: 0;
+  }
+
+  /* ── Steps ── */
+  .step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+  .step-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .step-num {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ground);
+    background: var(--accent);
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .step-num--amber { background: var(--amber); }
+  .step-title {
+    font-weight: 600;
+    font-size: 15px;
+    color: #fff;
+  }
+  .step p { margin-bottom: 8px; color: var(--text); }
+  .step p:last-child { margin-bottom: 0; }
+
+  .code-block {
+    background: var(--ground);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px 16px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text);
+    overflow-x: auto;
+    margin: 10px 0;
+  }
+  .code-block .comment { color: var(--text-muted); }
+  .code-block .str { color: var(--green); }
+  .code-block .kw { color: var(--accent); }
+
+  /* ── Tool comparison table ── */
+  .tool-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .tool-table th {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .tool-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .tool-table tr:last-child td { border-bottom: none; }
+  .tool-table .tool-name {
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+  }
+  .tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    margin-right: 4px;
+  }
+  .tag--cloud { background: var(--accent-dim); color: var(--accent); }
+  .tag--local { background: var(--amber-dim); color: var(--amber); }
+  .tag--rec { background: rgba(34,197,94,0.12); color: var(--green); }
+
+  /* ── Schema block ── */
+  .schema {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px 24px;
+    margin: 16px 0;
+  }
+  .schema-title {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
+  }
+  .schema-field {
+    display: flex;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(42,53,68,0.5);
+    font-size: 14px;
+  }
+  .schema-field:last-child { border-bottom: none; }
+  .schema-key {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--amber);
+    min-width: 180px;
+    flex-shrink: 0;
+  }
+  .schema-type {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    min-width: 70px;
+    flex-shrink: 0;
+  }
+  .schema-desc { color: var(--text); }
+
+  /* ── Roadmap ── */
+  .roadmap {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .phase {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px 24px;
+    border-top: 3px solid var(--border);
+  }
+  .phase--1 { border-top-color: var(--green); }
+  .phase--2 { border-top-color: var(--accent); }
+  .phase--3 { border-top-color: var(--amber); }
+
+  .phase-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .phase--1 .phase-label { color: var(--green); }
+  .phase--2 .phase-label { color: var(--accent); }
+  .phase--3 .phase-label { color: var(--amber); }
+
+  .phase-title {
+    font-weight: 600;
+    font-size: 16px;
+    color: #fff;
+    margin-bottom: 12px;
+  }
+  .phase ul {
+    list-style: none;
+    padding: 0;
+  }
+  .phase li {
+    padding: 4px 0 4px 20px;
+    position: relative;
+    font-size: 14px;
+  }
+  .phase li::before {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 12px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 2px solid var(--text-muted);
+  }
+  .phase--1 li::before { border-color: var(--green); }
+  .phase--2 li::before { border-color: var(--accent); }
+  .phase--3 li::before { border-color: var(--amber); }
+
+  /* ── Callout ── */
+  .callout {
+    background: var(--amber-dim);
+    border: 1px solid rgba(255,182,39,0.25);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .callout-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin-bottom: 6px;
+  }
+
+  /* ── Architecture diagram (2-layer) ── */
+  .arch {
+    background: var(--ground);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 28px 24px;
+    margin: 20px 0;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre;
+    color: var(--text-muted);
+  }
+  .arch .layer-1 { color: var(--accent); }
+  .arch .layer-2 { color: var(--amber); }
+  .arch .arrow { color: var(--text-muted); }
+  .arch .label { color: #fff; }
+
+  /* ── Footer ── */
+  .doc-footer {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    .page { padding: 0 16px 60px; }
+    .flow { flex-direction: column; align-items: stretch; }
+    .flow-arrow { transform: rotate(90deg); text-align: center; padding: 4px 0; }
+    .flow-node { min-width: auto; }
+    .schema-field { flex-direction: column; gap: 2px; }
+    .schema-key { min-width: auto; }
+    .doc-classification { gap: 8px; }
+    .roadmap { grid-template-columns: 1fr; }
+  }
+
+  /* ── Focus ── */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+</style>
+
+<div class="page">
+
+  <!-- ═══ DOCUMENT HEADER ═══ -->
+  <header class="doc-header">
+    <div class="doc-classification">
+      <span>Field Deployment Kit</span>
+      <span>v1.0</span>
+      <span>2026-06-20</span>
+    </div>
+    <h1 class="doc-title">AI Workflow Starter Kit</h1>
+    <p class="doc-subtitle">Two production-ready systems for a Global FAE: automated content quality pipeline and cross-region knowledge base with predictive capability.</p>
+  </header>
+
+  <!-- ═══ MISSION BRIEF ═══ -->
+  <div class="brief">
+    <div class="brief-label">Mission Brief</div>
+    <p>You want two things working together. <strong>First</strong>, a content pipeline that catches mistakes before your audience does: your draft goes through Claude for refinement, Gemini for independent critique, automated scoring for quality gating, and Slack for your final approval. <strong>Second</strong>, a knowledge base that turns years of multi-region FAE experience into a prediction engine&thinsp;&mdash;&thinsp;so when a new German military client shows up with the same hardware platform your Japanese client deployed last year, the system tells you what they'll need next before they ask.</p>
+    <p>Below: the n8n workflow file ready to import, the knowledge base architecture with a concrete data schema, and a three-phase deployment roadmap that starts producing value in one week.</p>
+  </div>
+
+  <!-- ═══ SECTION A: CONTENT PIPELINE ═══ -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-id">SYS-A</span>
+      <h2 class="section-title">Content Quality Pipeline</h2>
+    </div>
+
+    <p style="margin-bottom: 20px;">Four nodes, one principle: no content reaches your audience without a second model's critique and your explicit approval.</p>
+
+    <div class="flow">
+      <div class="flow-node flow-node--claude">
+        <div class="flow-node-label">Step 1</div>
+        <div class="flow-node-name">Claude</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Refine draft</div>
+      </div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-node flow-node--gemini">
+        <div class="flow-node-label">Step 2</div>
+        <div class="flow-node-name">Gemini</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Critique &amp; score</div>
+      </div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-node flow-node--eval">
+        <div class="flow-node-label">Step 3</div>
+        <div class="flow-node-name">Evaluation</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Pass / fail gate</div>
+      </div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-node flow-node--human">
+        <div class="flow-node-label">Step 4</div>
+        <div class="flow-node-name">You</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Approve in Slack</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-head">
+        <div class="step-num">1</div>
+        <div class="step-title">Install n8n</div>
+      </div>
+      <p>n8n runs on your laptop or in the cloud. Pick one:</p>
+      <div class="code-block">
+<span class="comment"># Option A: Desktop app (easiest)</span>
+Download from <span class="str">https://n8n.io/get-started</span>
+
+<span class="comment"># Option B: Docker (if you have Docker)</span>
+<span class="kw">docker</span> run -it --rm -p 5678:5678 n8nio/n8n
+
+<span class="comment"># Option C: Cloud (no install)</span>
+Sign up at <span class="str">https://app.n8n.cloud</span></div>
+    </div>
+
+    <div class="step">
+      <div class="step-head">
+        <div class="step-num">2</div>
+        <div class="step-title">Import the workflow</div>
+      </div>
+      <p>Download the workflow file, then open n8n and go to <strong>Workflows &rarr; Import from File</strong>. All nodes and connections are pre-wired.</p>
+      <p><a href="llm-judge-workflow.json" download style="display:inline-block;padding:10px 20px;background:var(--accent);color:var(--ground);font-family:var(--mono);font-size:13px;font-weight:700;border-radius:4px;text-decoration:none;letter-spacing:0.5px;">Download llm-judge-workflow.json</a></p>
+    </div>
+
+    <div class="step">
+      <div class="step-head">
+        <div class="step-num">3</div>
+        <div class="step-title">Configure API keys</div>
+      </div>
+      <p>Open the <strong>"Configure Content Input"</strong> node and replace the placeholder values:</p>
+      <div style="overflow-x:auto;">
+        <table class="tool-table">
+          <thead>
+            <tr>
+              <th>Field</th>
+              <th>Where to get it</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="tool-name">anthropic_api_key</td>
+              <td>console.anthropic.com &rarr; API Keys &rarr; Create Key</td>
+            </tr>
+            <tr>
+              <td class="tool-name">gemini_api_key</td>
+              <td>aistudio.google.com &rarr; Get API Key</td>
+            </tr>
+            <tr>
+              <td class="tool-name">slack_webhook_url</td>
+              <td>api.slack.com &rarr; Your Apps &rarr; Incoming Webhooks &rarr; Add New</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <div class="callout-label">Corporate environment tip</div>
+        If your company blocks API access, use n8n's credential store or environment variables instead of pasting keys into the Set node. Keys in the Set node are visible in execution history&thinsp;&mdash;&thinsp;for production use, prefer n8n's built-in secrets management.
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-head">
+        <div class="step-num">4</div>
+        <div class="step-title">Test with real content</div>
+      </div>
+      <p>Paste a LinkedIn draft or presentation outline into the <code>content_input</code> field. Set <code>content_type</code> to match (LinkedIn post, presentation, technical document). Hit <strong>Execute Workflow</strong>.</p>
+      <p>Gemini scores across six dimensions: technical accuracy, clarity, audience fit, originality, actionability, and brand safety. The default pass threshold is <strong>80/100</strong>&thinsp;&mdash;&thinsp;adjust <code>quality_threshold</code> in the Set node to match your standards.</p>
+    </div>
+
+    <div class="step">
+      <div class="step-head">
+        <div class="step-num">5</div>
+        <div class="step-title">Review in Slack</div>
+      </div>
+      <p>The workflow sends a formatted Slack message with scores, critique, and the final draft. Content that passes the threshold arrives as "Ready for Approval" with the full text. Content below threshold arrives as "Needs Revision" with specific issues and suggested revisions. You read the message and decide whether to publish&thinsp;&mdash;&thinsp;no Slack app setup needed, just an incoming webhook.</p>
+    </div>
+  </section>
+
+  <!-- ═══ SECTION B: KNOWLEDGE BASE ═══ -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-id">SYS-B</span>
+      <h2 class="section-title">Cross-Region Knowledge Base</h2>
+    </div>
+
+    <p style="margin-bottom: 12px;">A two-layer system: structured case management on top, semantic intelligence underneath. The first layer captures what happened; the second predicts what will happen next.</p>
+
+    <div class="arch"><span class="label">    Architecture</span>
+
+    <span class="layer-1">Layer 1: Case Management</span>         <span class="layer-2">Layer 2: Intelligence</span>
+    <span class="layer-1">┌─────────────────────────┐</span>         <span class="layer-2">┌──────────────────────────┐</span>
+    <span class="layer-1">│  Notion  (cloud, collab) │</span>         <span class="layer-2">│  AnythingLLM (local, safe)│</span>
+    <span class="layer-1">│  or                      │</span><span class="arrow">───export──▶</span><span class="layer-2">│  or                      │</span>
+    <span class="layer-1">│  Obsidian (local, secure)│</span>         <span class="layer-2">│  n8n + Pinecone + Claude │</span>
+    <span class="layer-1">└─────────────────────────┘</span>         <span class="layer-2">└──────────────────────────┘</span>
+
+    <span class="arrow">    Ground truth data               Semantic search + predictions</span></div>
+
+    <div class="callout">
+      <div class="callout-label">Security-first decision</div>
+      Your clients include military and defense. Sensitive case data should never leave your machine. Use <strong>Obsidian + AnythingLLM Desktop</strong> for classified content (100% local). Use <strong>Notion + cloud LLM</strong> only for de-identified general cases.
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table class="tool-table">
+        <thead>
+          <tr>
+            <th>Tool</th>
+            <th>Type</th>
+            <th>Best for</th>
+            <th>Trade-off</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="tool-name">Notion</td>
+            <td><span class="tag tag--cloud">Cloud</span></td>
+            <td>De-identified enterprise cases, team collaboration, relational databases with views</td>
+            <td>SaaS&thinsp;&mdash;&thinsp;some defense orgs block the domain entirely</td>
+          </tr>
+          <tr>
+            <td class="tool-name">Obsidian</td>
+            <td><span class="tag tag--local">Local</span> <span class="tag tag--rec">Rec</span></td>
+            <td>Military/classified cases, offline use, full data sovereignty</td>
+            <td>No native collaboration; sync via Git or secure cloud drive</td>
+          </tr>
+          <tr>
+            <td class="tool-name">AnythingLLM</td>
+            <td><span class="tag tag--local">Local</span> <span class="tag tag--rec">Rec</span></td>
+            <td>Semantic search over your knowledge base without data leaving your laptop</td>
+            <td>Relies on local compute; complex automations need n8n on top</td>
+          </tr>
+          <tr>
+            <td class="tool-name">NotebookLM</td>
+            <td><span class="tag tag--cloud">Cloud</span></td>
+            <td>Quick cross-document analysis, zero setup</td>
+            <td>Google cloud storage; not for classified data</td>
+          </tr>
+          <tr>
+            <td class="tool-name">n8n + Pinecone</td>
+            <td><span class="tag tag--cloud">Cloud</span></td>
+            <td>Automated weekly prediction reports, writing results back to Notion</td>
+            <td>Requires API keys and ongoing costs; best for Phase 3</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- DATA SCHEMA -->
+    <h3 style="font-family:var(--mono);font-size:15px;color:#fff;margin:32px 0 16px;letter-spacing:0.3px;">Data Schema</h3>
+    <p style="margin-bottom:16px;font-size:14px;">Every customer case follows this structure. The consistency is what makes cross-region prediction possible.</p>
+
+    <div class="schema">
+      <div class="schema-title">Customer Profile</div>
+      <div class="schema-field">
+        <span class="schema-key">Customer_ID</span>
+        <span class="schema-type">string</span>
+        <span class="schema-desc">Codename, not real name. Example: <code>DE-MIL-03</code></span>
+      </div>
+      <div class="schema-field">
+        <span class="schema-key">Region</span>
+        <span class="schema-type">enum</span>
+        <span class="schema-desc"><code>TW</code> | <code>JP</code> | <code>NL</code> | <code>DE</code></span>
+      </div>
+      <div class="schema-field">
+        <span class="schema-key">Vertical</span>
+        <span class="schema-type">enum</span>
+        <span class="schema-desc"><code>Military</code> | <code>Industrial</code> | <code>Enterprise</code></span>
+      </div>
+      <div class="schema-field">
+        <span class="schema-key">Security_Level</span>
+        <span class="schema-type">enum</span>
+        <span class="schema-desc"><code>Unclassified</code> | <code>Confidential</code> | <code>Restricted</code></span>
+      </div>
+      <div class="schema-field">
+        <span class="schema-key">Hardware_Platform</span>
+        <span class="schema-type">string</span>
+        <span class="schema-desc">e.g. <code>Gen4-Tactical-Server</code></span>
+      </div>
+      <div class="schema-field">
+        <span class="schema-key">Compliance_Required</span>
+        <span class="schema-type">string[]</span>
+        <span class="schema-desc"><code>MIL-STD-810H</code>, <code>IEC-62443</code>, <code>CE</code></span>
+      </div>
+      <div class="schema-field">
+        <span class="schema-key">Enabled_Features</span>
+        <span class="schema-type">string[]</span>
+        <span class="schema-desc">Currently active features: <code>[A, B, C]</code></span>
+      </div>
+    </div>
+
+    <div class="schema">
+      <div class="schema-title">Case Study Record</div>
+      <div class="schema-field">
+        <span class="schema-key">Case_ID</span>
+        <span class="schema-type">string</span>
+        <span class="schema-desc">e.g. <code>CASE-2026-004</code></span>
+      </div>
+      <div class="schema-field">
+        <span class="schema-key">Customer</span>
+        <span class="schema-type">relation</span>
+        <span class="schema-desc">Links to Customer Profile</span>
+      </div>
+      <div class="schema-field">
+        <span class="schema-key">Symptom</span>
+        <span class="schema-type">text</span>
+        <span class="schema-desc">What happened. e.g. "G-sensor calibration drift at -20&deg;C startup"</span>
+      </div>
+      <div class="schema-field">
+        <span class="schema-key">Root_Cause</span>
+        <span class="schema-type">text</span>
+        <span class="schema-desc">Why it happened. e.g. "Crystal oscillator below operating temp, PLL unlocked"</span>
+      </div>
+      <div class="schema-field">
+        <span class="schema-key">Resolution</span>
+        <span class="schema-type">text</span>
+        <span class="schema-desc">What fixed it. e.g. "Bootloader update: 150ms delay for oscillator stabilization"</span>
+      </div>
+      <div class="schema-field">
+        <span class="schema-key">Deployment_Profile_Tag</span>
+        <span class="schema-type">string[]</span>
+        <span class="schema-desc">Auto-generated feature tags: <code>[High-Vibration, Low-Temp, Secure-Boot]</code></span>
+      </div>
+    </div>
+
+    <div class="schema">
+      <div class="schema-title">Prediction Fields</div>
+      <div class="schema-field">
+        <span class="schema-key">Predicted_Gaps</span>
+        <span class="schema-type">text</span>
+        <span class="schema-desc">Issues this client hasn't hit yet but likely will, based on similar profiles</span>
+      </div>
+      <div class="schema-field">
+        <span class="schema-key">Next_Best_Action</span>
+        <span class="schema-type">text</span>
+        <span class="schema-desc">What to proactively recommend. e.g. "Suggest Feature D + E (low-temp compensation firmware)"</span>
+      </div>
+    </div>
+
+    <!-- PREDICTION EXAMPLE -->
+    <h3 style="font-family:var(--mono);font-size:15px;color:#fff;margin:32px 0 16px;letter-spacing:0.3px;">How prediction works in practice</h3>
+
+    <div class="brief" style="border-left-color: var(--amber);">
+      <div class="brief-label" style="color:var(--amber);">Scenario</div>
+      <p>A new German military client (<code>DE-MIL-03</code>) deploys <code>Gen4-Tactical-Server</code> with <code>MIL-STD-810H</code> compliance, features A and B enabled.</p>
+      <p>Your knowledge base contains records showing that <code>JP-MIL-02</code> and <code>NL-MIL-05</code>&thinsp;&mdash;&thinsp;same hardware, same compliance standard&thinsp;&mdash;&thinsp;both activated <strong>Feature D (auto temperature compensation)</strong> within two months of deployment due to environmental temperature variance.</p>
+      <p>You ask the system: <em>"Based on similar deployment profiles, what will <code>DE-MIL-03</code> need in the next 3 months?"</em></p>
+      <p>The system identifies the match and recommends: <strong>proactively propose Feature D and Feature E before the client encounters the problem.</strong> You arrive at the meeting with a solution for a problem they didn't know they had.</p>
+    </div>
+  </section>
+
+  <!-- ═══ SECTION C: DEPLOYMENT ROADMAP ═══ -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-id">SYS-C</span>
+      <h2 class="section-title">Deployment Roadmap</h2>
+    </div>
+
+    <div class="roadmap">
+      <div class="phase phase--1">
+        <div class="phase-label">Phase 1 &mdash; Week 1</div>
+        <div class="phase-title">Structured capture</div>
+        <ul>
+          <li>Choose Layer 1 tool (Notion or Obsidian)</li>
+          <li>Set up schema template from above</li>
+          <li>Manually enter 5&ndash;10 historical cross-region cases</li>
+          <li>Import n8n workflow, configure API keys</li>
+          <li>Run first content through the pipeline</li>
+        </ul>
+      </div>
+      <div class="phase phase--2">
+        <div class="phase-label">Phase 2 &mdash; Month 1</div>
+        <div class="phase-title">Semantic intelligence</div>
+        <ul>
+          <li>Install AnythingLLM Desktop</li>
+          <li>Import de-identified cases as workspace data source</li>
+          <li>Write FAE-specific system prompt for querying</li>
+          <li>Test cross-region case retrieval queries</li>
+          <li>Iterate on deployment profile tags</li>
+        </ul>
+      </div>
+      <div class="phase phase--3">
+        <div class="phase-label">Phase 3 &mdash; Month 3</div>
+        <div class="phase-title">Automated prediction</div>
+        <ul>
+          <li>Add n8n workflow for weekly knowledge base scans</li>
+          <li>Auto-detect new customer deployments</li>
+          <li>Generate prediction reports via LLM</li>
+          <li>Send reports to email or write back to Notion</li>
+          <li>Refine prediction accuracy with feedback loop</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ SECTION D: COST REFERENCE ═══ -->
+  <section class="section">
+    <div class="section-header">
+      <span class="section-id">REF</span>
+      <h2 class="section-title">Quick Reference</h2>
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table class="tool-table">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Cost</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="tool-name">n8n Desktop</td>
+            <td>Free</td>
+            <td>Self-hosted, unlimited workflows</td>
+          </tr>
+          <tr>
+            <td class="tool-name">n8n Cloud</td>
+            <td>&euro;20/mo starter</td>
+            <td>No install, managed hosting</td>
+          </tr>
+          <tr>
+            <td class="tool-name">Claude API</td>
+            <td>~$0.01&ndash;0.03 per run</td>
+            <td>Sonnet 4.6; $3/$15 per MTok input/output</td>
+          </tr>
+          <tr>
+            <td class="tool-name">Gemini API</td>
+            <td>Free tier available</td>
+            <td>Gemini 2.5 Flash, generous free quota</td>
+          </tr>
+          <tr>
+            <td class="tool-name">AnythingLLM</td>
+            <td>Free</td>
+            <td>Desktop app, runs on your laptop</td>
+          </tr>
+          <tr>
+            <td class="tool-name">Obsidian</td>
+            <td>Free</td>
+            <td>Personal use; paid for commercial</td>
+          </tr>
+          <tr>
+            <td class="tool-name">Notion</td>
+            <td>Free / $10/mo</td>
+            <td>Free plan sufficient for solo use</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout" style="background: var(--accent-dim); border-color: rgba(0,166,251,0.25);">
+      <div class="callout-label" style="color:var(--accent);">Model provider independence</div>
+      The n8n workflow uses raw HTTP requests, not built-in AI nodes. This means you can swap Claude for OpenAI, Gemini for another reviewer, or even a local Ollama model&thinsp;&mdash;&thinsp;just change the URL and payload shape in the HTTP Request node. No workflow rebuild needed.
+    </div>
+  </section>
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer class="doc-footer">
+    <span>Prepared by Maki Chiang</span>
+    <span>Council: Claude (Architect) + Codex (Engineer) + Gemini (Analyst)</span>
+  </footer>
+
+</div>
